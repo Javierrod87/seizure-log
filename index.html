@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Seizure Log">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Seizure Log</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --card2:#273449; --line:#334155;
+    --text:#f1f5f9; --muted:#94a3b8; --accent:#38bdf8; --accent2:#0ea5e9;
+    --danger:#f87171; --ok:#4ade80; --warn:#fbbf24;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  body{padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 24px)}
+  .wrap{max-width:560px;margin:0 auto;padding:16px}
+  header{display:flex;align-items:center;justify-content:space-between;margin:4px 0 14px}
+  header h1{font-size:20px;margin:0}
+  header .who{font-size:13px;color:var(--muted);text-align:right}
+  .sync{font-size:12px;color:var(--muted)}
+  .sync.pending{color:var(--warn)}
+  .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:14px}
+  .card h2{font-size:14px;font-weight:600;color:var(--muted);margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+  .stat .n{font-size:28px;font-weight:700}
+  .stat.today .n{font-size:40px;color:var(--accent)}
+  .stat .l{font-size:12px;color:var(--muted)}
+  .bytype{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+  .pill{background:var(--card2);border-radius:999px;padding:4px 10px;font-size:13px}
+  .types{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .types button{min-height:64px;font-size:16px;font-weight:600}
+  button{font:inherit;color:var(--text);background:var(--card2);border:1px solid var(--line);
+    border-radius:12px;padding:12px 14px;cursor:pointer}
+  button:active{transform:scale(.98)}
+  button.primary{background:var(--accent2);border-color:var(--accent2);color:#fff;font-weight:700}
+  button.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+  button.link{background:none;border:none;color:var(--accent);padding:6px}
+  .chart{display:flex;align-items:flex-end;gap:4px;height:130px;padding-top:18px}
+  .bar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+  .bar .b{width:100%;background:var(--accent2);border-radius:4px 4px 0 0;min-height:2px}
+  .bar .v{font-size:11px;color:var(--text);margin-bottom:2px}
+  .bar .d{font-size:10px;color:var(--muted);margin-top:4px;white-space:nowrap;height:13px}
+  .bar.zero .b{background:var(--line)}
+  .rangebtns{display:flex;gap:6px;margin-bottom:4px}
+  .rangebtns button{padding:6px 10px;font-size:13px;border-radius:8px}
+  .rangebtns button.on{background:var(--accent2);border-color:var(--accent2)}
+  .day{margin-top:14px}
+  .day:first-child{margin-top:0}
+  .dayhdr{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);
+    border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:4px}
+  .ev{display:flex;gap:10px;padding:10px 4px;border-bottom:1px solid #263244;align-items:flex-start}
+  .ev:last-child{border-bottom:none}
+  .ev .t{font-variant-numeric:tabular-nums;color:var(--muted);min-width:64px;font-size:14px}
+  .ev .m{flex:1}
+  .ev .ty{font-weight:600}
+  .ev .sub{font-size:13px;color:var(--muted)}
+  .ev .x{font-size:12px;color:var(--warn)}
+  .ev .rx{color:var(--danger);font-weight:600}
+  .empty{color:var(--muted);text-align:center;padding:12px}
+  /* sheet */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:10}
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-radius:20px 20px 0 0;
+    padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto;
+    transform:translateY(105%);transition:transform .2s ease,visibility .2s;visibility:hidden;z-index:11;max-width:560px;margin:0 auto}
+  .sheet.open{transform:none;visibility:visible}
+  .scrim.open{display:block}
+  .sheet h3{margin:0 0 14px;font-size:18px}
+  label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
+  input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--text);background:var(--bg);
+    border:1px solid var(--line);border-radius:10px;padding:12px}
+  textarea{min-height:70px;resize:vertical}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chips button{padding:8px 12px;border-radius:999px;font-size:14px}
+  .chips button.on{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .stepper{display:flex;align-items:center;gap:10px}
+  .stepper button{width:48px;height:48px;padding:0;font-size:22px}
+  .stepper input{text-align:center;font-size:20px;font-weight:700}
+  .check{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:16px;color:var(--text)}
+  .check input{width:24px;height:24px}
+  .actions{display:flex;gap:10px;margin-top:18px}
+  .actions button{flex:1;min-height:52px}
+  .err{color:var(--danger);font-size:14px;margin-top:10px;min-height:1em}
+  .login{max-width:380px;margin:12vh auto 0}
+  .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);
+    background:#020617;border:1px solid var(--line);padding:10px 16px;border-radius:999px;font-size:14px;
+    opacity:0;transition:opacity .2s;z-index:20;pointer-events:none}
+  .toast.show{opacity:1}
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+  .types button:first-child{grid-column:1/-1;min-height:84px;font-size:21px;
+    background:var(--accent2);border-color:var(--accent2);color:#fff}
+  #recChips button{flex:1;min-height:48px}
+  .ev .rec-ok{color:var(--ok)} .ev .rec-bad{color:var(--warn)}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="loginView" class="wrap hidden">
+  <div class="login card">
+    <h1 style="margin:0 0 4px;font-size:22px">Seizure Log</h1>
+    <div class="sub" style="color:var(--muted);font-size:14px;margin-bottom:8px">Sign in once on each phone.</div>
+    <label>Email</label>
+    <input id="liEmail" type="email" autocomplete="username" inputmode="email">
+    <label>Password</label>
+    <input id="liPass" type="password" autocomplete="current-password">
+    <label>Your name (shows on entries)</label>
+    <input id="liName" type="text" placeholder="e.g. Javier">
+    <div class="actions"><button class="primary" id="liBtn">Sign in</button></div>
+    <div class="err" id="liErr"></div>
+  </div>
+</div>
+
+<!-- ===================== MAIN ===================== -->
+<div id="mainView" class="wrap hidden">
+  <header>
+    <h1 id="title">Seizure Log</h1>
+    <div class="who"><div id="whoName"></div><div class="sync" id="syncState">—</div></div>
+  </header>
+
+  <div class="card">
+    <h2>Today</h2>
+    <div class="stats">
+      <div class="stat today"><div class="n" id="sToday">0</div><div class="l">Today</div></div>
+      <div class="stat"><div class="n" id="sYest">0</div><div class="l">Yesterday</div></div>
+      <div class="stat"><div class="n" id="s7">0</div><div class="l">7-day avg</div></div>
+      <div class="stat"><div class="n" id="s30">0</div><div class="l">30-day avg</div></div>
+    </div>
+    <div class="bytype" id="todayTypes"></div>
+  </div>
+
+  <div class="card">
+    <h2>Log a seizure</h2>
+    <div class="types" id="typeBtns"></div>
+  </div>
+
+  <div class="card">
+    <h2>Daily totals</h2>
+    <div class="rangebtns">
+      <button data-range="7">7 days</button>
+      <button data-range="14" class="on">14 days</button>
+      <button data-range="30">30 days</button>
+    </div>
+    <div class="chart" id="chart"></div>
+  </div>
+
+  <div class="card">
+    <h2>History</h2>
+    <div id="history"></div>
+    <div class="foot">
+      <button class="link" id="moreBtn">Show more days</button>
+      <button class="link" id="exportBtn">Export CSV</button>
+    </div>
+  </div>
+
+  <div style="text-align:center"><button class="link" id="logoutBtn" style="color:var(--muted)">Sign out</button></div>
+</div>
+
+<!-- ===================== ENTRY SHEET ===================== -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <h3 id="shTitle">Log seizure</h3>
+  <label>Type</label>
+  <div class="chips" id="shTypes"></div>
+  <label>When</label>
+  <input id="shWhen" type="datetime-local">
+  <label>How many (use for clusters)</label>
+  <div class="stepper">
+    <button id="cMinus" type="button">−</button>
+    <input id="shCount" type="number" min="1" max="500" value="1" inputmode="numeric">
+    <button id="cPlus" type="button">+</button>
+  </div>
+  <label>About how long (optional)</label>
+  <div class="chips" id="durChips">
+    <button type="button" data-s="5">5s</button><button type="button" data-s="10">10s</button>
+    <button type="button" data-s="15">15s</button><button type="button" data-s="30">30s</button>
+    <button type="button" data-s="60">1 min</button><button type="button" data-s="120">2 min</button>
+  </div>
+  <input id="shDur" type="number" min="0" inputmode="numeric" placeholder="Or type seconds" style="margin-top:10px">
+  <label>Coming out of it</label>
+  <div class="chips" id="recChips">
+    <button type="button" data-r="Came right out">Came right out</button>
+    <button type="button" data-r="Disoriented / confused">Disoriented / confused</button>
+  </div>
+  <label class="check"><input id="shRx" type="checkbox"> Rescue medication given</label>
+  <label>Notes (optional)</label>
+  <textarea id="shNotes" placeholder="Triggers, sleep, illness, what happened after…"></textarea>
+  <div class="actions">
+    <button id="shCancel" type="button">Cancel</button>
+    <button id="shSave" class="primary" type="button">Save</button>
+  </div>
+  <div class="actions hidden" id="shDelRow"><button id="shDelete" class="danger" type="button">Delete entry</button></div>
+  <div class="err" id="shErr"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   CONFIG — fill these in (see SETUP.md)
+   ========================================================= */
+const SUPABASE_URL      = 'https://dwgyjfvpfdlrndziprqx.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_hmdQEtsv_ma5Yd4eU6HuNg_9zKwSfH_';
+const CHILD_NAME        = 'Kade';
+const SEIZURE_TYPES = [
+  'Tonic', 'Atonic (drop)', 'Atypical absence',
+  'Tonic-clonic', 'Myoclonic', 'Other / unsure'
+];
+const HISTORY_DAYS_LOADED = 90;   // how far back the app pulls for charts/history
+const POLL_MS = 30000;            // refresh from server every 30s while open
+
+/* =========================================================
+   Storage helpers
+   ========================================================= */
+const LS = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+let session = LS.get('sl_session', null);   // {access_token, refresh_token, expires_at, email}
+let myName  = LS.get('sl_name', '');
+let outbox  = LS.get('sl_outbox', []);      // rows waiting to be saved to server
+let events  = LS.get('sl_cache', []);       // last server copy (so the app opens instantly / offline)
+let range   = 14;
+let historyDays = 7;
+let lastSync = null;
+
+/* =========================================================
+   Raw REST layer (no supabase-js)
+   ========================================================= */
+async function authReq(grant, body){
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${grant}`, {
+    method:'POST',
+    headers:{ apikey:SUPABASE_ANON_KEY, 'Content-Type':'application/json' },
+    body:JSON.stringify(body)
+  });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error_description || j.msg || j.message || ('Sign-in failed ('+r.status+')'));
+  return {
+    access_token:j.access_token, refresh_token:j.refresh_token,
+    expires_at:j.expires_at || (Math.floor(Date.now()/1000) + (j.expires_in||3600)),
+    email:(j.user && j.user.email) || (session && session.email) || ''
+  };
+}
+let refreshing = null;
+async function ensureToken(){
+  if(!session) throw new Error('not signed in');
+  if(session.expires_at - 60 > Date.now()/1000) return;
+  if(!refreshing){
+    refreshing = authReq('refresh_token', { refresh_token:session.refresh_token })
+      .then(s => { session = s; LS.set('sl_session', s); })
+      .catch(e => { if(/invalid|not found|revoked|expired/i.test(e.message)){ signOut(); } throw e; })
+      .finally(() => { refreshing = null; });
+  }
+  return refreshing;
+}
+async function api(path, { method='GET', body, prefer } = {}){
+  await ensureToken();
+  const headers = {
+    apikey:SUPABASE_ANON_KEY,
+    Authorization:'Bearer ' + session.access_token,
+    'Content-Type':'application/json'
+  };
+  if(prefer) headers.Prefer = prefer;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method, headers, body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  if(r.status === 401){ session.expires_at = 0; LS.set('sl_session', session); }
+  const txt = await r.text();
+  if(!r.ok){
+    let msg = txt; try{ const j = JSON.parse(txt); msg = j.message || j.hint || txt; }catch(e){}
+    throw new Error(msg || ('Request failed ('+r.status+')'));
+  }
+  return txt ? JSON.parse(txt) : null;
+}
+
+/* =========================================================
+   Data ops
+   ========================================================= */
+function uuid(){
+  if(crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
+  });
+}
+async function pull(){
+  const since = new Date(Date.now() - HISTORY_DAYS_LOADED*864e5).toISOString();
+  const rows = await api(`seizures?select=*&occurred_at=gte.${encodeURIComponent(since)}&order=occurred_at.desc&limit=10000`);
+  events = rows || [];
+  LS.set('sl_cache', events);
+  lastSync = new Date();
+}
+async function flushOutbox(){
+  if(!outbox.length) return;
+  const batch = outbox.slice();
+  // upsert with ignore-duplicates on id → retries can never double-count
+  await api('seizures?on_conflict=id', {
+    method:'POST', body:batch, prefer:'resolution=ignore-duplicates,return=minimal'
+  });
+  const sent = new Set(batch.map(b => b.id));
+  outbox = outbox.filter(o => !sent.has(o.id));
+  LS.set('sl_outbox', outbox);
+}
+let syncing = false;
+async function sync(){
+  if(!session || syncing) return;
+  syncing = true;
+  try{
+    await flushOutbox();
+    await pull();
+  }catch(e){
+    console.warn('sync failed', e);
+  }finally{
+    syncing = false;
+    render();
+  }
+}
+
+/* =========================================================
+   Date helpers (device local time)
+   ========================================================= */
+const pad = n => String(n).padStart(2,'0');
+function dayKey(d){ d = new Date(d); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function localInputValue(d){
+  d = new Date(d);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+function fmtTime(d){ return new Date(d).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+function fmtDay(key){
+  const [y,m,dd] = key.split('-').map(Number);
+  const d = new Date(y, m-1, dd);
+  const t = dayKey(new Date()), yk = dayKey(addDays(new Date(), -1));
+  if(key === t) return 'Today';
+  if(key === yk) return 'Yesterday';
+  return d.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric'});
+}
+function fmtDur(sec){ if(sec==null) return ''; sec=+sec; return sec<60 ? sec+'s' : Math.floor(sec/60)+'m '+pad(sec%60)+'s'; }
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* =========================================================
+   Render
+   ========================================================= */
+function allRows(){
+  const ids = new Set(events.map(e => e.id));
+  const pending = outbox.filter(o => !ids.has(o.id)).map(o => ({...o, _pending:true}));
+  return pending.concat(events).sort((a,b) => new Date(b.occurred_at) - new Date(a.occurred_at));
+}
+function totalsByDay(rows){
+  const m = {};
+  rows.forEach(r => { const k = dayKey(r.occurred_at); m[k] = (m[k]||0) + (r.seizure_count||1); });
+  return m;
+}
+function avg(byDay, days){
+  // average over the last N full days, not counting today
+  let s = 0;
+  for(let i=1;i<=days;i++) s += byDay[dayKey(addDays(new Date(), -i))] || 0;
+  const v = s/days;
+  return v >= 10 ? Math.round(v) : (Math.round(v*10)/10);
+}
+function render(){
+  const rows = allRows();
+  const byDay = totalsByDay(rows);
+  const todayK = dayKey(new Date());
+  document.getElementById('sToday').textContent = byDay[todayK] || 0;
+  document.getElementById('sYest').textContent  = byDay[dayKey(addDays(new Date(),-1))] || 0;
+  document.getElementById('s7').textContent  = avg(byDay, 7);
+  document.getElementById('s30').textContent = avg(byDay, 30);
+
+  // today by type
+  const tt = {};
+  rows.filter(r => dayKey(r.occurred_at) === todayK)
+      .forEach(r => tt[r.seizure_type] = (tt[r.seizure_type]||0) + (r.seizure_count||1));
+  const todays = rows.filter(r => dayKey(r.occurred_at) === todayK);
+  const durs = todays.filter(r => r.duration_sec != null).map(r => +r.duration_sec);
+  const confused = todays.filter(r => r.recovery && !/right/.test(r.recovery)).length;
+  const okc = todays.filter(r => r.recovery && /right/.test(r.recovery)).length;
+  const pills = Object.entries(tt).map(([k,v]) => `<span class="pill">${esc(k)}: <b>${v}</b></span>`);
+  if(durs.length) pills.push(`<span class="pill">Avg length: <b>${fmtDur(Math.round(durs.reduce((a,b)=>a+b,0)/durs.length))}</b></span>`,
+                             `<span class="pill">Longest: <b>${fmtDur(Math.max(...durs))}</b></span>`);
+  if(okc) pills.push(`<span class="pill">Came right out: <b>${okc}</b></span>`);
+  if(confused) pills.push(`<span class="pill">Disoriented: <b>${confused}</b></span>`);
+  document.getElementById('todayTypes').innerHTML = pills.join('');
+
+  // chart
+  const days = [];
+  for(let i=range-1;i>=0;i--) days.push(dayKey(addDays(new Date(), -i)));
+  const max = Math.max(1, ...days.map(k => byDay[k]||0));
+  document.getElementById('chart').innerHTML = days.map((k,i) => {
+    const v = byDay[k]||0;
+    const [y,m,d] = k.split('-').map(Number);
+    const step = range <= 7 ? 1 : range <= 14 ? 2 : 5;
+    const lbl = (days.length-1-i) % step === 0 || i === days.length-1
+      ? new Date(y,m-1,d).toLocaleDateString([], range<=7 ? {weekday:'short'} : {month:'numeric', day:'numeric'}) : '';
+    return `<div class="bar ${v?'':'zero'}"><div class="v">${v||''}</div>
+      <div class="b" style="height:${(v/max)*100}%"></div><div class="d">${lbl}</div></div>`;
+  }).join('');
+
+  // history
+  const groups = {};
+  rows.forEach(r => (groups[dayKey(r.occurred_at)] ||= []).push(r));
+  const cutoff = dayKey(addDays(new Date(), -(historyDays-1)));
+  const keys = Object.keys(groups).filter(k => k >= cutoff).sort().reverse();
+  document.getElementById('history').innerHTML = keys.length ? keys.map(k => `
+    <div class="day">
+      <div class="dayhdr"><span>${fmtDay(k)}</span><span>${byDay[k]} total</span></div>
+      ${groups[k].map(r => `
+        <div class="ev" data-id="${esc(r.id)}">
+          <div class="t">${fmtTime(r.occurred_at)}</div>
+          <div class="m">
+            <div class="ty">${esc(r.seizure_type)}${(r.seizure_count||1)>1 ? ` ×${r.seizure_count}` : ''}
+              ${r.rescue_med ? '<span class="rx"> · Rescue med</span>' : ''}</div>
+            <div class="sub">${[
+              r.duration_sec ? fmtDur(r.duration_sec) : '',
+              r.recovery ? `<span class="${/right/.test(r.recovery)?'rec-ok':'rec-bad'}">${esc(r.recovery)}</span>` : '',
+              r.logged_by ? 'by ' + esc(r.logged_by) : ''
+            ].filter(Boolean).join(' · ')}</div>
+            ${r.notes ? `<div class="sub">${esc(r.notes)}</div>` : ''}
+            ${r._pending ? '<div class="x">Saved on this phone — will sync when online</div>' : ''}
+          </div>
+        </div>`).join('')}
+    </div>`).join('') : '<div class="empty">No seizures logged in this period.</div>';
+  document.getElementById('moreBtn').classList.toggle('hidden', historyDays >= HISTORY_DAYS_LOADED);
+
+  // sync state
+  const st = document.getElementById('syncState');
+  if(outbox.length){ st.textContent = `${outbox.length} waiting to sync`; st.className = 'sync pending'; }
+  else if(lastSync){ st.textContent = 'Synced ' + fmtTime(lastSync); st.className = 'sync'; }
+  else { st.textContent = navigator.onLine ? 'Connecting…' : 'Offline'; st.className = 'sync'; }
+}
+
+/* =========================================================
+   Entry sheet
+   ========================================================= */
+let shRec = null;
+function setRec(r){
+  shRec = r || null;
+  document.querySelectorAll('#recChips button').forEach(b => b.classList.toggle('on', b.dataset.r === shRec));
+}
+function markDur(){
+  const v = document.getElementById('shDur').value;
+  document.querySelectorAll('#durChips button').forEach(b => b.classList.toggle('on', b.dataset.s === v));
+}
+let editing = null;   // row being edited, or null for new
+let shType = SEIZURE_TYPES[0];
+function setShType(t){
+  shType = t;
+  document.querySelectorAll('#shTypes button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+}
+function openSheet(row, presetType){
+  editing = row || null;
+  document.getElementById('shTitle').textContent = row ? 'Edit entry' : 'Log seizure';
+  setShType(row ? row.seizure_type : (presetType || SEIZURE_TYPES[0]));
+  document.getElementById('shWhen').value  = localInputValue(row ? row.occurred_at : new Date());
+  document.getElementById('shCount').value = row ? (row.seizure_count||1) : 1;
+  document.getElementById('shDur').value   = row && row.duration_sec != null ? row.duration_sec : '';
+  setRec(row ? row.recovery : null);
+  markDur();
+  document.getElementById('shRx').checked  = row ? !!row.rescue_med : false;
+  document.getElementById('shNotes').value = row ? (row.notes||'') : '';
+  document.getElementById('shDelRow').classList.toggle('hidden', !row);
+  document.getElementById('shErr').textContent = '';
+  document.getElementById('sheet').classList.add('open');
+  document.getElementById('scrim').classList.add('open');
+}
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('open');
+  document.getElementById('scrim').classList.remove('open');
+  editing = null;
+}
+function readSheet(){
+  const when = document.getElementById('shWhen').value;
+  const d = when ? new Date(when) : new Date();
+  if(isNaN(d)) throw new Error('Check the date/time.');
+  const cnt = Math.max(1, Math.min(500, parseInt(document.getElementById('shCount').value,10) || 1));
+  const durRaw = document.getElementById('shDur').value.trim();
+  const dur = durRaw === '' ? null : Math.max(0, parseInt(durRaw,10) || 0);
+  return {
+    occurred_at: d.toISOString(),
+    seizure_type: shType,
+    seizure_count: cnt,
+    duration_sec: dur,
+    rescue_med: document.getElementById('shRx').checked,
+    recovery: shRec,
+    notes: document.getElementById('shNotes').value.trim() || null
+  };
+}
+async function saveSheet(){
+  const err = document.getElementById('shErr'); err.textContent = '';
+  let data; try{ data = readSheet(); }catch(e){ err.textContent = e.message; return; }
+  const btn = document.getElementById('shSave'); btn.disabled = true;
+  try{
+    if(editing && !editing._pending){
+      await api(`seizures?id=eq.${editing.id}`, {
+        method:'PATCH', body:{...data, updated_at:new Date().toISOString()}, prefer:'return=minimal'
+      });
+      closeSheet(); toast('Updated'); await sync();
+    }else{
+      // new entry (or editing one still waiting to sync): save locally first so nothing is lost
+      const row = editing && editing._pending
+        ? {...outbox.find(o => o.id === editing.id), ...data}
+        : {id:uuid(), ...data, logged_by: myName || null};
+      outbox = outbox.filter(o => o.id !== row.id).concat([row]);
+      LS.set('sl_outbox', outbox);
+      closeSheet(); render(); toast('Logged');
+      sync();
+    }
+  }catch(e){
+    err.textContent = navigator.onLine ? e.message : 'No connection — try again when online.';
+  }finally{ btn.disabled = false; }
+}
+async function deleteEntry(){
+  if(!editing) return;
+  if(!confirm('Delete this entry? This removes it from both phones.')) return;
+  try{
+    if(editing._pending){
+      outbox = outbox.filter(o => o.id !== editing.id); LS.set('sl_outbox', outbox);
+    }else{
+      await api(`seizures?id=eq.${editing.id}`, {method:'DELETE', prefer:'return=minimal'});
+      events = events.filter(e => e.id !== editing.id); LS.set('sl_cache', events);
+    }
+    closeSheet(); render(); toast('Deleted'); sync();
+  }catch(e){
+    document.getElementById('shErr').textContent = navigator.onLine ? e.message : 'No connection — try again when online.';
+  }
+}
+
+/* =========================================================
+   CSV export (for neurologist visits)
+   ========================================================= */
+async function exportCSV(){
+  let rows;
+  try{ rows = await api('seizures?select=*&order=occurred_at.asc&limit=100000'); }
+  catch(e){ rows = allRows().slice().reverse(); toast('Offline — exporting what is on this phone'); }
+  const head = ['Date','Time','Type','Count','Duration (sec)','Rescue med','Recovery','Notes','Logged by'];
+  const q = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
+  const lines = [head.join(',')].concat(rows.map(r => [
+    dayKey(r.occurred_at), fmtTime(r.occurred_at), r.seizure_type, r.seizure_count||1,
+    r.duration_sec ?? '', r.rescue_med ? 'Yes' : 'No', r.recovery || '', r.notes || '', r.logged_by || ''
+  ].map(q).join(',')));
+  const name = `seizure-log-${dayKey(new Date())}.csv`;
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const file = new File([blob], name, {type:'text/csv'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:name}); return; }catch(e){ if(e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+/* =========================================================
+   Login / UI wiring
+   ========================================================= */
+function toast(msg){
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function showView(){
+  document.getElementById('loginView').classList.toggle('hidden', !!session);
+  document.getElementById('mainView').classList.toggle('hidden', !session);
+  if(session){
+    document.getElementById('whoName').textContent = myName || session.email;
+    render(); sync();
+  }
+}
+async function signIn(){
+  const email = document.getElementById('liEmail').value.trim();
+  const pass  = document.getElementById('liPass').value;
+  const name  = document.getElementById('liName').value.trim();
+  const err = document.getElementById('liErr'); err.textContent = '';
+  if(!email || !pass){ err.textContent = 'Enter email and password.'; return; }
+  try{
+    session = await authReq('password', {email, password:pass});
+    LS.set('sl_session', session);
+    myName = name || email.split('@')[0]; LS.set('sl_name', myName);
+    showView();
+  }catch(e){ err.textContent = e.message; }
+}
+function signOut(){
+  if(outbox.length && !confirm(`${outbox.length} entr${outbox.length>1?'ies have':'y has'} not synced yet and will be lost. Sign out anyway?`)) return;
+  session = null; events = []; outbox = [];
+  ['sl_session','sl_cache','sl_outbox'].forEach(LS.del);
+  showView();
+}
+
+(function init(){
+  if(CHILD_NAME){
+    const t = `${CHILD_NAME}'s Seizure Log`;
+    document.getElementById('title').textContent = t; document.title = t;
+  }
+  document.getElementById('liName').value = myName;
+  document.getElementById('typeBtns').innerHTML =
+    SEIZURE_TYPES.map((t,i) => `<button data-t="${esc(t)}">${i===0 ? '+ Log ' + esc(t.toLowerCase()) + ' seizure' : esc(t)}</button>`).join('');
+  document.getElementById('shTypes').innerHTML =
+    SEIZURE_TYPES.map(t => `<button type="button" data-t="${esc(t)}">${esc(t)}</button>`).join('');
+
+  document.getElementById('typeBtns').onclick = e => { const b = e.target.closest('button'); if(b) openSheet(null, b.dataset.t); };
+  document.getElementById('shTypes').onclick  = e => { const b = e.target.closest('button'); if(b) setShType(b.dataset.t); };
+  document.getElementById('history').onclick  = e => {
+    const el = e.target.closest('.ev'); if(!el) return;
+    const row = allRows().find(r => r.id === el.dataset.id); if(row) openSheet(row);
+  };
+  document.querySelectorAll('.rangebtns button').forEach(b => b.onclick = () => {
+    range = +b.dataset.range;
+    document.querySelectorAll('.rangebtns button').forEach(x => x.classList.toggle('on', x === b));
+    render();
+  });
+  const cnt = document.getElementById('shCount');
+  document.getElementById('cMinus').onclick = () => cnt.value = Math.max(1, (+cnt.value||1) - 1);
+  document.getElementById('cPlus').onclick  = () => cnt.value = Math.min(500, (+cnt.value||1) + 1);
+  document.getElementById('durChips').onclick = e => { const b = e.target.closest('button'); if(!b) return;
+    document.getElementById('shDur').value = b.dataset.s; markDur(); };
+  document.getElementById('shDur').oninput = markDur;
+  document.getElementById('recChips').onclick = e => { const b = e.target.closest('button'); if(b) setRec(shRec === b.dataset.r ? null : b.dataset.r); };
+  document.getElementById('shSave').onclick   = saveSheet;
+  document.getElementById('shCancel').onclick = closeSheet;
+  document.getElementById('scrim').onclick    = closeSheet;
+  document.getElementById('shDelete').onclick = deleteEntry;
+  document.getElementById('moreBtn').onclick  = () => { historyDays = Math.min(HISTORY_DAYS_LOADED, historyDays + 14); render(); };
+  document.getElementById('exportBtn').onclick = exportCSV;
+  document.getElementById('logoutBtn').onclick = signOut;
+  document.getElementById('liBtn').onclick = signIn;
+  document.getElementById('liPass').addEventListener('keydown', e => { if(e.key === 'Enter') signIn(); });
+
+  window.addEventListener('online', sync);
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) sync(); });
+  setInterval(() => { if(!document.hidden) sync(); }, POLL_MS);
+  // re-render at midnight so "Today" rolls over
+  setInterval(render, 60000);
+
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  showView();
+})();
+</script>
+</body>
+</html>
