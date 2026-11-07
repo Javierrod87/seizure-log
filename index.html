@@ -101,6 +101,49 @@
   #recChips button{flex:1;min-height:48px}
   .ev .rec-ok{color:var(--ok)} .ev .rec-bad{color:var(--warn)}
   .hidden{display:none!important}
+  /* meds */
+  .med{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #263244}
+  .med:last-child{border-bottom:none}
+  .med .nm{font-weight:700}
+  .med .ds{color:var(--accent);font-weight:600}
+  .med .since{font-size:12px;color:var(--muted)}
+  .med .btns{display:flex;gap:6px;flex-shrink:0}
+  .med .btns button{padding:8px 10px;font-size:13px;border-radius:8px}
+  .wide{width:100%;min-height:56px;font-size:17px;font-weight:700}
+  .mh-row{padding:10px 4px;border-bottom:1px solid #263244;cursor:pointer}
+  .mh-row .sub{font-size:13px;color:var(--muted)}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:var(--card2);margin-left:6px;vertical-align:middle}
+  .tag.on{background:#14532d;color:#bbf7d0}
+  /* report (light, printable) */
+  #reportView{background:#fff;color:#111;min-height:100vh}
+  #reportView .rtool{position:sticky;top:0;background:#0f172a;color:#fff;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;z-index:5}
+  #reportView .rtool select,#reportView .rtool button{width:auto;padding:9px 12px;font-size:14px;border-radius:8px}
+  #reportView .rtool .sp{flex:1}
+  .rep{max-width:820px;margin:0 auto;padding:20px 16px 40px;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+  .rep h1{font-size:22px;margin:0}
+  .rep h2{font-size:15px;margin:26px 0 8px;padding-bottom:4px;border-bottom:2px solid #111;text-transform:uppercase;letter-spacing:.04em}
+  .rep .meta{color:#555;font-size:13px;margin-top:2px}
+  .rep table{width:100%;border-collapse:collapse;font-size:13px}
+  .rep th,.rep td{text-align:left;padding:6px 6px;border-bottom:1px solid #ddd;vertical-align:top}
+  .rep th{background:#f3f4f6;font-weight:700}
+  .rep td.n,.rep th.n{text-align:right;font-variant-numeric:tabular-nums}
+  .rep .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .rep .kpi{border:1px solid #ddd;border-radius:8px;padding:8px 10px}
+  .rep .kpi .v{font-size:20px;font-weight:700}
+  .rep .kpi .l{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.03em}
+  .rep .note{font-size:12px;color:#555;margin-top:6px}
+  .rep .daygrp td{background:#fafafa;font-weight:700}
+  .rep svg text{font-family:inherit}
+  @media (max-width:600px){ .rep .kpis{grid-template-columns:repeat(2,1fr)} }
+  @media print{
+    body{background:#fff!important;padding:0}
+    #mainView,#loginView,.sheet,.scrim,.toast,.rtool{display:none!important}
+    #reportView{display:block!important}
+    .rep{max-width:none;padding:0}
+    .rep h2{break-after:avoid}
+    .rep tr,.rep .kpi{break-inside:avoid}
+    @page{margin:14mm}
+  }
 </style>
 </head>
 <body>
@@ -108,7 +151,7 @@
 <!-- ===================== LOGIN ===================== -->
 <div id="loginView" class="wrap hidden">
   <div class="login card">
-    <h1 style="margin:0 0 4px;font-size:22px">Seizure Log</h1>
+    <h1 id="liTitle" style="margin:0 0 4px;font-size:22px">Seizure Log</h1>
     <div class="sub" style="color:var(--muted);font-size:14px;margin-bottom:8px">Sign in once on each phone.</div>
     <label>Email</label>
     <input id="liEmail" type="email" autocomplete="username" inputmode="email">
@@ -142,6 +185,19 @@
   <div class="card">
     <h2>Log a seizure</h2>
     <div class="types" id="typeBtns"></div>
+  </div>
+
+  <div class="card">
+    <h2>Current medications</h2>
+    <div id="medList"></div>
+    <div class="foot">
+      <button class="link" id="addMedBtn">+ Add medication</button>
+      <button class="link" id="medHistBtn">Medication history</button>
+    </div>
+  </div>
+
+  <div class="card" style="padding:12px">
+    <button class="primary wide" id="reportBtn">View report for doctor</button>
   </div>
 
   <div class="card">
@@ -203,6 +259,67 @@
   <div class="err" id="shErr"></div>
 </div>
 
+<!-- ===================== MED SHEET ===================== -->
+<div class="sheet" id="medSheet">
+  <h3 id="mdTitle">Add medication</h3>
+  <div id="mdNameWrap">
+    <label>Medication name</label>
+    <input id="mdName" type="text" placeholder="e.g. Clobazam (Onfi)" autocomplete="off">
+  </div>
+  <div id="mdDoseWrap">
+    <label>Dose</label>
+    <input id="mdDose" type="text" placeholder="e.g. 10 mg">
+    <label>How often</label>
+    <div class="chips" id="mdFreqChips">
+      <button type="button" data-f="Once daily">Once daily</button>
+      <button type="button" data-f="Twice daily">Twice daily</button>
+      <button type="button" data-f="Three times daily">3× daily</button>
+      <button type="button" data-f="At bedtime">At bedtime</button>
+      <button type="button" data-f="As needed (rescue)">As needed / rescue</button>
+    </div>
+    <input id="mdFreq" type="text" placeholder="Or type, e.g. 5 mg AM / 10 mg PM" style="margin-top:8px">
+  </div>
+  <label id="mdDateLbl">Date started</label>
+  <input id="mdDate" type="date">
+  <div id="mdEndWrap" class="hidden">
+    <label>Date stopped (leave blank if still taking)</label>
+    <input id="mdEnd" type="date">
+  </div>
+  <label id="mdReasonLbl">Reason / doctor's note (optional)</label>
+  <input id="mdReason" type="text" placeholder="e.g. Dr. Smith increased — still breakthrough seizures">
+  <div class="actions">
+    <button id="mdCancel" type="button">Cancel</button>
+    <button id="mdSave" class="primary" type="button">Save</button>
+  </div>
+  <div class="actions hidden" id="mdDelRow"><button id="mdDelete" class="danger" type="button">Delete this record</button></div>
+  <div class="err" id="mdErr"></div>
+</div>
+
+<!-- ===================== MED HISTORY SHEET ===================== -->
+<div class="sheet" id="mhSheet">
+  <h3>Medication history</h3>
+  <div class="sub" style="color:var(--muted);font-size:13px;margin-bottom:8px">Tap any line to correct it.</div>
+  <div id="mhList"></div>
+  <div class="actions"><button id="mhClose" type="button">Close</button></div>
+</div>
+
+<!-- ===================== REPORT ===================== -->
+<div id="reportView" class="hidden">
+  <div class="rtool">
+    <button id="repBack" type="button">‹ Back</button>
+    <select id="repRange">
+      <option value="30">Last 30 days</option>
+      <option value="90">Last 90 days</option>
+      <option value="182">Last 6 months</option>
+      <option value="365">Last 12 months</option>
+      <option value="all" selected>All time</option>
+    </select>
+    <span class="sp"></span>
+    <button id="repPrint" class="primary" type="button">Print / Save PDF</button>
+  </div>
+  <div class="rep" id="repBody"><div style="padding:40px;text-align:center;color:#555">Loading…</div></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -234,6 +351,7 @@ let events  = LS.get('sl_cache', []);       // last server copy (so the app open
 let range   = 14;
 let historyDays = 7;
 let lastSync = null;
+let meds    = LS.get('sl_meds', []);        // medication regimens
 
 /* =========================================================
    Raw REST layer (no supabase-js)
@@ -298,6 +416,10 @@ async function pull(){
   const rows = await api(`seizures?select=*&occurred_at=gte.${encodeURIComponent(since)}&order=occurred_at.desc&limit=10000`);
   events = rows || [];
   LS.set('sl_cache', events);
+  try{
+    meds = await api('medications?select=*&order=started_on.desc,created_at.desc') || [];
+    LS.set('sl_meds', meds);
+  }catch(e){ console.warn('meds load failed', e); }
   lastSync = new Date();
 }
 async function flushOutbox(){
@@ -369,6 +491,7 @@ function avg(byDay, days){
   return v >= 10 ? Math.round(v) : (Math.round(v*10)/10);
 }
 function render(){
+  renderMeds();
   const rows = allRows();
   const byDay = totalsByDay(rows);
   const todayK = dayKey(new Date());
@@ -416,7 +539,7 @@ function render(){
       <div class="dayhdr"><span>${fmtDay(k)}</span><span>${byDay[k]} total</span></div>
       ${groups[k].map(r => `
         <div class="ev" data-id="${esc(r.id)}">
-          <div class="t">${fmtTime(r.occurred_at)}</div>
+          <div class="t">${r.time_unknown ? '—' : fmtTime(r.occurred_at)}</div>
           <div class="m">
             <div class="ty">${esc(r.seizure_type)}${(r.seizure_count||1)>1 ? ` ×${r.seizure_count}` : ''}
               ${r.rescue_med ? '<span class="rx"> · Rescue med</span>' : ''}</div>
@@ -545,7 +668,7 @@ async function exportCSV(){
   const head = ['Date','Time','Type','Count','Duration (sec)','Rescue med','Recovery','Notes','Logged by'];
   const q = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; };
   const lines = [head.join(',')].concat(rows.map(r => [
-    dayKey(r.occurred_at), fmtTime(r.occurred_at), r.seizure_type, r.seizure_count||1,
+    dayKey(r.occurred_at), r.time_unknown ? '' : fmtTime(r.occurred_at), r.seizure_type, r.seizure_count||1,
     r.duration_sec ?? '', r.rescue_med ? 'Yes' : 'No', r.recovery || '', r.notes || '', r.logged_by || ''
   ].map(q).join(',')));
   const name = `seizure-log-${dayKey(new Date())}.csv`;
@@ -589,15 +712,324 @@ async function signIn(){
 }
 function signOut(){
   if(outbox.length && !confirm(`${outbox.length} entr${outbox.length>1?'ies have':'y has'} not synced yet and will be lost. Sign out anyway?`)) return;
-  session = null; events = []; outbox = [];
-  ['sl_session','sl_cache','sl_outbox'].forEach(LS.del);
+  session = null; events = []; outbox = []; meds = [];
+  ['sl_session','sl_cache','sl_outbox','sl_meds'].forEach(LS.del);
   showView();
+}
+
+/* =========================================================
+   Medications
+   ========================================================= */
+function parseDay(s){ if(!s) return null; const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function fmtDate(s){ const d = typeof s === 'string' ? parseDay(s) : s; return d ? d.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'}) : ''; }
+function todayStr(){ return dayKey(new Date()); }
+function activeMeds(onDay){   // onDay = 'YYYY-MM-DD'
+  return meds.filter(m => m.started_on <= onDay && (!m.ended_on || m.ended_on > onDay))
+             .sort((a,b) => a.name.localeCompare(b.name));
+}
+function medLine(m){ return `${m.name} ${m.dose}${m.frequency ? ', ' + m.frequency : ''}`; }
+function renderMeds(){
+  const cur = activeMeds(todayStr());
+  document.getElementById('medList').innerHTML = cur.length ? cur.map(m => `
+    <div class="med">
+      <div>
+        <div class="nm">${esc(m.name)}</div>
+        <div><span class="ds">${esc(m.dose)}</span>${m.frequency ? ' · ' + esc(m.frequency) : ''}</div>
+        <div class="since">Since ${fmtDate(m.started_on)}</div>
+      </div>
+      <div class="btns">
+        <button data-act="change" data-id="${m.id}">Change dose</button>
+        <button data-act="stop" data-id="${m.id}">Stop</button>
+      </div>
+    </div>`).join('') : '<div class="empty">No medications entered yet.</div>';
+}
+
+let mdMode = null, mdRow = null;
+function openSheetEl(id){ document.getElementById(id).classList.add('open'); document.getElementById('scrim').classList.add('open'); }
+function closeAllSheets(){
+  ['sheet','medSheet','mhSheet'].forEach(i => document.getElementById(i).classList.remove('open'));
+  document.getElementById('scrim').classList.remove('open');
+  editing = null;
+}
+function markFreq(){
+  const v = document.getElementById('mdFreq').value;
+  document.querySelectorAll('#mdFreqChips button').forEach(b => b.classList.toggle('on', b.dataset.f === v));
+}
+function openMedSheet(mode, row){
+  mdMode = mode; mdRow = row || null;
+  const $ = id => document.getElementById(id);
+  $('mdErr').textContent = '';
+  const titles = {add:'Add medication', change:'Change dose', stop:'Stop medication', edit:'Edit record'};
+  $('mdTitle').textContent = titles[mode] + (row && mode !== 'edit' ? ' — ' + row.name : '');
+  $('mdNameWrap').classList.toggle('hidden', mode === 'change' || mode === 'stop');
+  $('mdDoseWrap').classList.toggle('hidden', mode === 'stop');
+  $('mdEndWrap').classList.toggle('hidden', mode !== 'edit');
+  $('mdDelRow').classList.toggle('hidden', mode !== 'edit');
+  $('mdDateLbl').textContent = mode === 'change' ? 'Date of change' : mode === 'stop' ? 'Date stopped' : 'Date started';
+  $('mdReasonLbl').textContent = mode === 'stop' ? 'Reason stopped (optional)' : mode === 'change' ? "Reason / doctor's note (optional)" : 'Note (optional)';
+  $('mdName').value = row ? row.name : '';
+  $('mdDose').value = mode === 'change' ? '' : (row ? row.dose : '');
+  $('mdDose').placeholder = mode === 'change' ? `New dose (was ${row.dose})` : 'e.g. 10 mg';
+  $('mdFreq').value = row ? (row.frequency || '') : '';
+  $('mdDate').value = mode === 'edit' ? row.started_on : todayStr();
+  $('mdEnd').value  = mode === 'edit' ? (row.ended_on || '') : '';
+  $('mdReason').value = mode === 'edit' ? (row.change_reason || row.end_reason || '') : '';
+  markFreq();
+  document.getElementById('mhSheet').classList.remove('open');
+  openSheetEl('medSheet');
+}
+async function saveMed(){
+  const $ = id => document.getElementById(id);
+  const err = $('mdErr'); err.textContent = '';
+  const name = $('mdName').value.trim(), dose = $('mdDose').value.trim(), freq = $('mdFreq').value.trim() || null;
+  const date = $('mdDate').value, reason = $('mdReason').value.trim() || null;
+  if(!date){ err.textContent = 'Pick a date.'; return; }
+  const btn = $('mdSave'); btn.disabled = true;
+  try{
+    if(mdMode === 'add'){
+      if(!name || !dose){ throw new Error('Enter the medication name and dose.'); }
+      await api('medications', {method:'POST', prefer:'return=minimal',
+        body:{name, dose, frequency:freq, started_on:date, change_reason:reason, logged_by:myName||null}});
+    }else if(mdMode === 'change'){
+      if(!dose) throw new Error('Enter the new dose.');
+      if(date < mdRow.started_on) throw new Error('Change date is before this dose started (' + fmtDate(mdRow.started_on) + ').');
+      // end the old regimen, start the new one on the same date
+      await api(`medications?id=eq.${mdRow.id}`, {method:'PATCH', prefer:'return=minimal', body:{ended_on:date}});
+      await api('medications', {method:'POST', prefer:'return=minimal',
+        body:{name:mdRow.name, dose, frequency:freq, started_on:date, change_reason:reason, logged_by:myName||null}});
+    }else if(mdMode === 'stop'){
+      if(date < mdRow.started_on) throw new Error('Stop date is before this dose started.');
+      await api(`medications?id=eq.${mdRow.id}`, {method:'PATCH', prefer:'return=minimal', body:{ended_on:date, end_reason:reason}});
+    }else if(mdMode === 'edit'){
+      const end = $('mdEnd').value || null;
+      if(!name || !dose) throw new Error('Name and dose are required.');
+      if(end && end < date) throw new Error('Stop date is before start date.');
+      const body = {name, dose, frequency:freq, started_on:date, ended_on:end};
+      if(mdRow.end_reason && end) body.end_reason = reason; else body.change_reason = reason;
+      await api(`medications?id=eq.${mdRow.id}`, {method:'PATCH', prefer:'return=minimal', body});
+    }
+    closeAllSheets(); toast('Saved'); await sync();
+  }catch(e){
+    err.textContent = navigator.onLine ? e.message : 'No connection — medication changes need internet.';
+  }finally{ btn.disabled = false; }
+}
+async function deleteMed(){
+  if(!mdRow || !confirm(`Delete this record (${medLine(mdRow)})? This can't be undone.`)) return;
+  try{
+    await api(`medications?id=eq.${mdRow.id}`, {method:'DELETE', prefer:'return=minimal'});
+    closeAllSheets(); toast('Deleted'); await sync();
+  }catch(e){ document.getElementById('mdErr').textContent = e.message; }
+}
+function openMedHistory(){
+  const byName = {};
+  meds.forEach(m => (byName[m.name] ||= []).push(m));
+  const names = Object.keys(byName).sort();
+  document.getElementById('mhList').innerHTML = names.length ? names.map(n => `
+    <div style="margin-top:12px;font-weight:700">${esc(n)}</div>
+    ${byName[n].sort((a,b) => b.started_on.localeCompare(a.started_on)).map(m => `
+      <div class="mh-row" data-id="${m.id}">
+        <div>${esc(m.dose)}${m.frequency ? ' · ' + esc(m.frequency) : ''}
+          ${!m.ended_on ? '<span class="tag on">current</span>' : ''}</div>
+        <div class="sub">${fmtDate(m.started_on)} → ${m.ended_on ? fmtDate(m.ended_on) : 'now'}
+          ${m.change_reason ? ' · ' + esc(m.change_reason) : ''}${m.end_reason ? ' · Stopped: ' + esc(m.end_reason) : ''}</div>
+      </div>`).join('')}`).join('') : '<div class="empty">No medications entered yet.</div>';
+  openSheetEl('mhSheet');
+}
+
+/* =========================================================
+   Doctor report
+   ========================================================= */
+async function openReport(){
+  document.getElementById('mainView').classList.add('hidden');
+  document.getElementById('reportView').classList.remove('hidden');
+  window.scrollTo(0,0);
+  await buildReport();
+}
+function closeReport(){
+  document.getElementById('reportView').classList.add('hidden');
+  document.getElementById('mainView').classList.remove('hidden');
+}
+function daysBetween(a, b){ return Math.round((b - a) / 864e5); }
+function startOfWeek(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x; }
+async function buildReport(){
+  const body = document.getElementById('repBody');
+  body.innerHTML = '<div style="padding:40px;text-align:center;color:#555">Loading…</div>';
+  const rv = document.getElementById('repRange').value;
+  const today = new Date(); today.setHours(0,0,0,0);
+  let rows;
+  try{
+    rows = await api('seizures?select=*&order=occurred_at.asc&limit=100000') || [];
+    try{ meds = await api('medications?select=*&order=started_on.desc') || meds; LS.set('sl_meds', meds); }catch(e){}
+  }catch(e){
+    rows = allRows().slice().reverse();
+  }
+  // include unsynced entries
+  const ids = new Set(rows.map(r => r.id));
+  outbox.forEach(o => { if(!ids.has(o.id)) rows.push(o); });
+  rows.sort((a,b) => new Date(a.occurred_at) - new Date(b.occurred_at));
+
+  let start;
+  if(rv === 'all'){
+    const firstSz = rows.length ? new Date(rows[0].occurred_at) : today;
+    const firstMed = meds.length ? parseDay(meds.map(m => m.started_on).sort()[0]) : today;
+    start = new Date(Math.min(firstSz, firstMed)); start.setHours(0,0,0,0);
+  }else{
+    start = addDays(today, -(+rv - 1));
+  }
+  const endEx = addDays(today, 1);                 // exclusive end
+  const inRange = rows.filter(r => { const d = new Date(r.occurred_at); return d >= start && d < endEx; });
+  const nDays = Math.max(1, daysBetween(start, endEx));
+  const cnt = r => r.seizure_count || 1;
+  const total = inRange.reduce((a,r) => a + cnt(r), 0);
+  const byDay = {}; inRange.forEach(r => { const k = dayKey(r.occurred_at); byDay[k] = (byDay[k]||0) + cnt(r); });
+  const daysWith = Object.keys(byDay).length;
+  const maxDay = Object.entries(byDay).sort((a,b) => b[1]-a[1])[0];
+  const durs = inRange.filter(r => r.duration_sec != null).map(r => +r.duration_sec);
+  const avgDur = durs.length ? Math.round(durs.reduce((a,b)=>a+b,0)/durs.length) : null;
+  const withRec = inRange.filter(r => r.recovery);
+  const disor = withRec.filter(r => !/right/.test(r.recovery)).length;
+  const rescue = inRange.filter(r => r.rescue_med).length;
+  const r1 = v => (Math.round(v*10)/10).toString();
+  const nm = CHILD_NAME ? CHILD_NAME + "'s" : '';
+
+  // ---- medication change markers within range
+  const startK = dayKey(start), endK = dayKey(today);
+  const changes = [];
+  meds.forEach(m => {
+    if(m.started_on >= startK && m.started_on <= endK){
+      const prev = meds.find(p => p.name === m.name && p.ended_on === m.started_on);
+      changes.push({date:m.started_on, text: prev ? `${m.name}: ${prev.dose} → ${m.dose}` : `Started ${m.name} ${m.dose}`, reason:m.change_reason});
+    }
+    if(m.ended_on && m.ended_on >= startK && m.ended_on <= endK){
+      const next = meds.find(n => n.name === m.name && n.started_on === m.ended_on);
+      if(!next) changes.push({date:m.ended_on, text:`Stopped ${m.name} (${m.dose})`, reason:m.end_reason});
+    }
+  });
+  changes.sort((a,b) => a.date.localeCompare(b.date));
+
+  // ---- chart buckets
+  const gran = nDays <= 62 ? 'day' : nDays <= 400 ? 'week' : 'month';
+  const buckets = [];
+  if(gran === 'day'){ for(let d = new Date(start); d < endEx; d = addDays(d,1)) buckets.push({s:new Date(d), e:addDays(d,1)}); }
+  else if(gran === 'week'){ for(let d = startOfWeek(start); d < endEx; d = addDays(d,7)) buckets.push({s:new Date(d), e:addDays(d,7)}); }
+  else { for(let d = new Date(start.getFullYear(), start.getMonth(), 1); d < endEx; d = new Date(d.getFullYear(), d.getMonth()+1, 1)) buckets.push({s:new Date(d), e:new Date(d.getFullYear(), d.getMonth()+1, 1)}); }
+  buckets.forEach(b => b.v = inRange.filter(r => { const d = new Date(r.occurred_at); return d >= b.s && d < b.e; }).reduce((a,r) => a + cnt(r), 0));
+  const W = 760, H = 230, pl = 34, pr = 10, pt = 14, pb = 34;
+  const cw = W - pl - pr, ch = H - pt - pb;
+  const maxV = Math.max(1, ...buckets.map(b => b.v));
+  const niceMax = (() => { const steps = [1,2,5,10,20,25,50,100,200,500]; const step = steps.find(s => maxV/s <= 5) || 1000; return Math.ceil(maxV/step)*step; })();
+  const x0 = buckets.length ? buckets[0].s.getTime() : start.getTime();
+  const x1 = buckets.length ? buckets[buckets.length-1].e.getTime() : endEx.getTime();
+  const X = t => pl + (t - x0) / (x1 - x0) * cw;
+  const Y = v => pt + ch - v / niceMax * ch;
+  const bw = cw / Math.max(1, buckets.length);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Seizures per ${gran}">`;
+  for(let i=0;i<=4;i++){ const v = niceMax*i/4, y = Y(v);
+    svg += `<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="#e5e7eb"/><text x="${pl-6}" y="${y+4}" font-size="10" text-anchor="end" fill="#555">${Math.round(v)}</text>`; }
+  buckets.forEach((b,i) => { if(!b.v) return; const x = X(b.s.getTime()) + bw*0.12, w = Math.max(1, bw*0.76);
+    svg += `<rect x="${x}" y="${Y(b.v)}" width="${w}" height="${pt+ch-Y(b.v)}" fill="#0284c7" rx="1.5"><title>${b.v}</title></rect>`; });
+  const lblEvery = Math.ceil(buckets.length / 10);
+  buckets.forEach((b,i) => { if(i % lblEvery) return;
+    const t = gran === 'month' ? b.s.toLocaleDateString([], {month:'short', year:'2-digit'}) : b.s.toLocaleDateString([], {month:'numeric', day:'numeric'});
+    svg += `<text x="${X(b.s.getTime()) + bw/2}" y="${H-pb+14}" font-size="10" text-anchor="middle" fill="#555">${t}</text>`; });
+  changes.forEach((c,i) => { const x = X(parseDay(c.date).getTime());
+    svg += `<line x1="${x}" x2="${x}" y1="${pt}" y2="${pt+ch}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <circle cx="${x}" cy="${pt+8}" r="8" fill="#dc2626"/><text x="${x}" y="${pt+11.5}" font-size="10" font-weight="700" text-anchor="middle" fill="#fff">${i+1}</text>`; });
+  svg += `<line x1="${pl}" x2="${W-pr}" y1="${pt+ch}" y2="${pt+ch}" stroke="#111"/></svg>`;
+
+  // ---- seizure rate by medication period
+  const bounds = [...new Set([startK, ...changes.map(c => c.date), dayKey(endEx)])].sort();
+  const periods = [];
+  for(let i=0;i<bounds.length-1;i++){
+    const a = parseDay(bounds[i]), b = parseDay(bounds[i+1]);
+    const days = daysBetween(a, b); if(days <= 0) continue;
+    const rs = inRange.filter(r => { const d = new Date(r.occurred_at); return d >= a && d < b; });
+    const n = rs.reduce((x,r) => x + cnt(r), 0);
+    const ds = rs.filter(r => r.duration_sec != null).map(r => +r.duration_sec);
+    periods.push({a, b:addDays(b,-1), days, n, avg:n/days, dur: ds.length ? Math.round(ds.reduce((x,y)=>x+y,0)/ds.length) : null, regimen: activeMeds(bounds[i])});
+  }
+
+  // ---- monthly table
+  const months = {};
+  inRange.forEach(r => { const d = new Date(r.occurred_at); const k = `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+    const m = months[k] ||= {n:0, durs:[], dis:0, rec:0, resc:0}; m.n += cnt(r);
+    if(r.duration_sec != null) m.durs.push(+r.duration_sec); if(r.recovery){ m.rec++; if(!/right/.test(r.recovery)) m.dis++; } if(r.rescue_med) m.resc++; });
+  const monthRows = Object.keys(months).sort().reverse().map(k => {
+    const [y,mo] = k.split('-').map(Number), m = months[k];
+    const first = new Date(y, mo-1, 1), last = new Date(y, mo, 1);
+    const ds = Math.max(1, daysBetween(first < start ? start : first, last > endEx ? endEx : last));
+    return `<tr><td>${first.toLocaleDateString([], {month:'long', year:'numeric'})}</td><td class="n">${m.n}</td><td class="n">${r1(m.n/ds)}</td>
+      <td class="n">${m.durs.length ? fmtDur(Math.round(m.durs.reduce((a,b)=>a+b,0)/m.durs.length)) : '—'}</td>
+      <td class="n">${m.rec ? m.dis + ' of ' + m.rec : '—'}</td><td class="n">${m.resc || '—'}</td></tr>`; }).join('');
+
+  // ---- full log (newest first, grouped by day)
+  const logGroups = {};
+  inRange.slice().reverse().forEach(r => (logGroups[dayKey(r.occurred_at)] ||= []).push(r));
+  const logRows = Object.keys(logGroups).map(k => `
+    <tr class="daygrp"><td colspan="6">${parseDay(k).toLocaleDateString([], {weekday:'short', month:'short', day:'numeric', year:'numeric'})} — ${byDay[k]} total</td></tr>
+    ${logGroups[k].map(r => `<tr><td>${r.time_unknown ? '—' : fmtTime(r.occurred_at)}</td><td>${esc(r.seizure_type)}${cnt(r)>1 ? ' ×'+cnt(r) : ''}</td>
+      <td class="n">${r.duration_sec != null ? fmtDur(r.duration_sec) : '—'}</td><td>${esc(r.recovery || '—')}</td>
+      <td>${r.rescue_med ? 'Yes' : ''}</td><td>${esc(r.notes || '')}</td></tr>`).join('')}`).join('');
+
+  const cur = activeMeds(endK);
+  const histRows = meds.filter(m => m.started_on <= endK && (!m.ended_on || m.ended_on >= startK))
+    .sort((a,b) => a.name.localeCompare(b.name) || a.started_on.localeCompare(b.started_on))
+    .map(m => `<tr><td>${esc(m.name)}</td><td>${esc(m.dose)}</td><td>${esc(m.frequency || '')}</td><td>${fmtDate(m.started_on)}</td>
+      <td>${m.ended_on ? fmtDate(m.ended_on) : '<b>Current</b>'}</td><td>${esc([m.change_reason, m.end_reason ? 'Stopped: ' + m.end_reason : ''].filter(Boolean).join(' · '))}</td></tr>`).join('');
+
+  const rangeLbl = `${start.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'})} – ${today.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'})}`;
+  body.innerHTML = `
+    <h1>${esc(nm)} Seizure &amp; Medication Report</h1>
+    <div class="meta">${rangeLbl} (${nDays} days) · Generated ${new Date().toLocaleString([], {month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'})}</div>
+
+    <h2>Summary</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="v">${total}</div><div class="l">Total seizures</div></div>
+      <div class="kpi"><div class="v">${r1(total/nDays)}</div><div class="l">Avg per day</div></div>
+      <div class="kpi"><div class="v">${maxDay ? maxDay[1] : 0}</div><div class="l">Most in one day${maxDay ? ' (' + fmtDate(maxDay[0]) + ')' : ''}</div></div>
+      <div class="kpi"><div class="v">${nDays - daysWith}</div><div class="l">Seizure-free days</div></div>
+      <div class="kpi"><div class="v">${avgDur != null ? fmtDur(avgDur) : '—'}</div><div class="l">Avg length${durs.length ? ' (' + durs.length + ' timed)' : ''}</div></div>
+      <div class="kpi"><div class="v">${durs.length ? fmtDur(Math.max(...durs)) : '—'}</div><div class="l">Longest</div></div>
+      <div class="kpi"><div class="v">${withRec.length ? Math.round(disor/withRec.length*100) + '%' : '—'}</div><div class="l">Disoriented after${withRec.length ? ' (' + disor + ' of ' + withRec.length + ')' : ''}</div></div>
+      <div class="kpi"><div class="v">${rescue}</div><div class="l">Rescue med given</div></div>
+    </div>
+
+    <h2>Current medications</h2>
+    ${cur.length ? `<table><tr><th>Medication</th><th>Dose</th><th>Frequency</th><th>Since</th></tr>
+      ${cur.map(m => `<tr><td><b>${esc(m.name)}</b></td><td>${esc(m.dose)}</td><td>${esc(m.frequency || '')}</td><td>${fmtDate(m.started_on)}</td></tr>`).join('')}</table>`
+      : '<div class="note">No current medications entered.</div>'}
+
+    <h2>Seizures per ${gran}</h2>
+    ${svg}
+    ${changes.length ? `<table style="margin-top:6px"><tr><th style="width:28px">#</th><th style="width:110px">Date</th><th>Medication change</th></tr>
+      ${changes.map((c,i) => `<tr><td><b style="color:#dc2626">${i+1}</b></td><td>${fmtDate(c.date)}</td><td>${esc(c.text)}${c.reason ? ' — ' + esc(c.reason) : ''}</td></tr>`).join('')}</table>`
+      : '<div class="note">No medication changes in this period.</div>'}
+
+    ${periods.length > 1 ? `<h2>Seizure rate by medication period</h2>
+    <table><tr><th>Period</th><th>Medications during period</th><th class="n">Days</th><th class="n">Seizures</th><th class="n">Avg/day</th><th class="n">Avg length</th></tr>
+      ${periods.map(p => `<tr><td>${fmtDate(p.a)} – ${fmtDate(p.b)}</td><td>${p.regimen.length ? p.regimen.map(m => esc(medLine(m))).join('<br>') : '<i>None recorded</i>'}</td>
+        <td class="n">${p.days}</td><td class="n">${p.n}</td><td class="n"><b>${r1(p.avg)}</b></td><td class="n">${p.dur != null ? fmtDur(p.dur) : '—'}</td></tr>`).join('')}</table>
+    <div class="note">Periods are split at each medication change so the rate on each regimen can be compared.</div>` : ''}
+
+    <h2>Medication history</h2>
+    ${histRows ? `<table><tr><th>Medication</th><th>Dose</th><th>Frequency</th><th>Started</th><th>Ended</th><th>Notes</th></tr>${histRows}</table>`
+      : '<div class="note">No medication history entered.</div>'}
+
+    <h2>Monthly breakdown</h2>
+    ${monthRows ? `<table><tr><th>Month</th><th class="n">Seizures</th><th class="n">Avg/day</th><th class="n">Avg length</th><th class="n">Disoriented</th><th class="n">Rescue</th></tr>${monthRows}</table>`
+      : '<div class="note">No seizures recorded in this period.</div>'}
+
+    <h2>Full seizure log</h2>
+    ${logRows ? `<table><tr><th style="width:70px">Time</th><th>Type</th><th class="n">Length</th><th>Recovery</th><th>Rescue</th><th>Notes</th></tr>${logRows}</table>`
+      : '<div class="note">No seizures recorded in this period.</div>'}
+  `;
 }
 
 (function init(){
   if(CHILD_NAME){
     const t = `${CHILD_NAME}'s Seizure Log`;
     document.getElementById('title').textContent = t; document.title = t;
+    document.getElementById('liTitle').textContent = t;
   }
   document.getElementById('liName').value = myName;
   document.getElementById('typeBtns').innerHTML =
@@ -625,7 +1057,24 @@ function signOut(){
   document.getElementById('recChips').onclick = e => { const b = e.target.closest('button'); if(b) setRec(shRec === b.dataset.r ? null : b.dataset.r); };
   document.getElementById('shSave').onclick   = saveSheet;
   document.getElementById('shCancel').onclick = closeSheet;
-  document.getElementById('scrim').onclick    = closeSheet;
+  document.getElementById('scrim').onclick    = closeAllSheets;
+  document.getElementById('medList').onclick  = e => { const b = e.target.closest('button'); if(!b) return;
+    const m = meds.find(x => x.id === b.dataset.id); if(m) openMedSheet(b.dataset.act, m); };
+  document.getElementById('addMedBtn').onclick  = () => openMedSheet('add');
+  document.getElementById('medHistBtn').onclick = openMedHistory;
+  document.getElementById('mhList').onclick = e => { const el = e.target.closest('.mh-row'); if(!el) return;
+    const m = meds.find(x => x.id === el.dataset.id); if(m) openMedSheet('edit', m); };
+  document.getElementById('mhClose').onclick  = closeAllSheets;
+  document.getElementById('mdCancel').onclick = closeAllSheets;
+  document.getElementById('mdSave').onclick   = saveMed;
+  document.getElementById('mdDelete').onclick = deleteMed;
+  document.getElementById('mdFreqChips').onclick = e => { const b = e.target.closest('button'); if(!b) return;
+    document.getElementById('mdFreq').value = b.dataset.f; markFreq(); };
+  document.getElementById('mdFreq').oninput = markFreq;
+  document.getElementById('reportBtn').onclick = openReport;
+  document.getElementById('repBack').onclick   = closeReport;
+  document.getElementById('repRange').onchange = buildReport;
+  document.getElementById('repPrint').onclick  = () => window.print();
   document.getElementById('shDelete').onclick = deleteEntry;
   document.getElementById('moreBtn').onclick  = () => { historyDays = Math.min(HISTORY_DAYS_LOADED, historyDays + 14); render(); };
   document.getElementById('exportBtn').onclick = exportCSV;
